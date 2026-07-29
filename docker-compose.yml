@@ -1,33 +1,61 @@
 services:
-  cart-service:
+  cart_service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
     image: arpit667/cart-service:1.0
     container_name: cart-service
+
     ports:
       - "8004:8004"
+
     environment:
-      PORT: 8004
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@cart-db:5432/cart_db
+      PORT: "8004"
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@cart_db:5432/cart_db
+      REDIS_URL: redis://cart_redis:6379/0
       JWT_SECRET: ${JWT_SECRET}
+      PRODUCT_SERVICE_URL: http://${PRODUCT_HOST}:8003
+
     depends_on:
-      cart-db:
+      cart_db:
         condition: service_healthy
+      cart_redis:
+        condition: service_healthy
+
     restart: unless-stopped
 
-  cart-db:
+  cart_db:
     image: postgres:16-alpine
     container_name: cart-db
+
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: cart_db
+
     volumes:
-      - cart-db-data:/var/lib/postgresql/data
+      - cart_db_data:/var/lib/postgresql/data
+
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d cart_db"]
       interval: 5s
       timeout: 3s
       retries: 10
+
+    restart: unless-stopped
+
+  cart_redis:
+    image: redis:7-alpine
+    container_name: cart-redis
+
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
     restart: unless-stopped
 
 volumes:
-  cart-db-data:
+  cart_db_data:
